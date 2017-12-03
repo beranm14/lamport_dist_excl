@@ -1,0 +1,11 @@
+version: '3.3'
+services:
+  runner:
+    build:
+      context: ./dockerfiles/
+      dockerfile: ./runner
+    volumes:
+      - ./:/opt
+    restart: on-failure
+    working_dir: /opt
+    # command: bash -c 'scripts/predict.sh'

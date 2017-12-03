@@ -24,16 +24,16 @@ def main():
     args = parser.parse_args()
 
     lamp = lamport(whoami=args.whoami, path_to_nodes=args.nodes)
+    print("\n")
 
+    time.sleep(30)
+    lamp.lock()
+    print("\n")
+    print("Locked")
     time.sleep(10)
-    lock = lamp.lock()
-    if lock:
-        print("Locked")
-        time.sleep(10)
-        lamp.unlock()
-        print("Unlocked")
-    else:
-        print("Couldn't get a lock")
+    lamp.unlock()
+    print("\n")
+    print("Unlocked")
 
     lamp.finnish()
 

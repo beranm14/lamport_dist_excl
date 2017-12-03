@@ -37,6 +37,7 @@ class lamport_communication:
         self.whoami = whoami
         self.nodes_ = nodes
 
+        logger.debug("Binding socket " + str(whoami))
         (source_ip, source_po) = self.get_targets(whoami)
         self.socket_.bind((source_ip, source_po))
         self.socket_.listen(1)
@@ -49,13 +50,17 @@ class lamport_communication:
                 json.dumps(
                     {
                         'type': 'request',
-                        'message': message
+                        'message': message,
+                        'source': self.whoami
                     }
                 ) + '\0', 'UTF-8')
         )
         s.close()
 
     def send_release(self, ip, port, message):
+        logging.debug(
+            "Send release " + str(ip) + ":" + str(port) + " " + str(message)
+        )
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
         s.send(
@@ -63,28 +68,61 @@ class lamport_communication:
                 json.dumps(
                     {
                         'type': 'release',
-                        'message': message
+                        'message': message,
+                        'source': self.whoami
                     }
-                ) + '\0'), 'UTF-8')
+                ) + '\0', 'UTF-8')
+        )
+        s.close()
+
+    def send_end(self, ip, port):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip, port))
+        s.send(
+            bytes(
+                json.dumps(
+                    {
+                        'type': 'end',
+                        'message': 'end',
+                        'source': self.whoami
+                    }
+                ) + '\0', 'UTF-8')
+        )
         s.close()
 
     def broadcast_request(self, message):
+        failed_nodes = []
         for i in self.nodes_:
             (target_ip, target_po) = self.get_targets(i)
-            self.send_request(target_ip, target_po, message)
+            try:
+                self.send_request(target_ip, target_po, message)
+            except socket.error:
+                logging.debug("Failed node " + str(i))
+                failed_nodes.append(i)
+        return failed_nodes
 
     def broadcast_release(self, message):
+        logging.debug("Broadcast release " + str(message))
+        failed_nodes = []
         for i in self.nodes_:
             (target_ip, target_po) = self.get_targets(i)
-            self.send_release(target_ip, target_po, message)
+            try:
+                self.send_release(target_ip, target_po, message)
+            except socket.error:
+                logging.debug("Failed node " + str(i))
+                failed_nodes.append(i)
+        return failed_nodes
 
     def receive_(self):
         BUFFER_SIZE = 512
         data = b''
         conn, addr = self.socket_.accept()
+        logging.debug("Received from " + str(addr))
         while 1:
             new_data = conn.recv(BUFFER_SIZE)
             data = data + new_data
             if new_data[-1:] == b'\x00':
                 break
-        return json.loads(data[:-1].decode("utf-8"))
+        message = json.loads(data[:-1].decode("utf-8"))
+        logging.debug("Received message " + str(message))
+        return message
