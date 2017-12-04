@@ -47,6 +47,9 @@ class lamport:
             logger.debug("Lock taken")
             return True
         logger.debug("Lock already taken")
+        self.comm_.broadcast_release(request)
+        request_queue_.remove(request)
+        logger.debug("Requested for lock removal")
         self.lock_ = []
         return False
 
@@ -97,15 +100,15 @@ class lamport:
                     break
         # pick message with the biggest timestamp
         request_queue_.sort(key=lambda x: x[0])
-        tail = request_queue_[-1:][0]
+        tail = request_queue_[-1]
         # if it is our message, we got the lock!
         receive_ansv_ = False
+        self.timer_.timer_ = tail[1]  # setting max timer value
         if tail == request:
             logging.info(
                 "Adjusting time from " +
                 str(self.timer_.timer_) +
                 " to " + str(tail[1]))
-            self.timer_.timer_ = tail[1]  # setting max timer value
             logging.info("Got lock")
             return True
         logging.info("Din't got lock")
@@ -127,6 +130,7 @@ class lamport:
                 request_queue_.sort(key=lambda x: x[0])
                 tail = request_queue_[-1]
                 logger.debug('tail value ' + str(tail))
+                self.timer_.timer_ = tail[1]
                 (ip, port) = self.comm_.get_targets(message['source'])
                 self.comm_.send_request(ip, port, tail)
             elif receive_ansv_ is False and message['type'] == 'release':
