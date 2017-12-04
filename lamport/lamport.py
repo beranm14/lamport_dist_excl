@@ -16,7 +16,6 @@ end_flag = False
 
 class lamport:
 
-    timer_ = lamport_timer()
     nodes_ = []
     lock_ = []
 
@@ -28,6 +27,7 @@ class lamport:
                 if i != whoami:
                     self.nodes_.append(i)
             logger.debug("Nodes " + str(self.nodes_))
+        self.timer_ = lamport_timer(whoami)
         self.comm_ = lamport_communication(
             self.nodes_, whoami)
         self.whoami = whoami
@@ -82,6 +82,9 @@ class lamport:
 
     def test_winner(self, request):
         global receive_ansv_, request_queue_, failed_nodes
+        if request[1] in [k[1] for k in request_queue_]:
+            logging.info("Lock with same timer already taken")
+            return False
         receive_ansv_ = True
         logger.debug("Switching to wait for request state")
         ans_nodes = []
@@ -99,7 +102,7 @@ class lamport:
                 if self.all_node_sent(ans_nodes):
                     break
         # pick message with the biggest timestamp
-        request_queue_.sort(key=lambda x: x[0])
+        request_queue_.sort(key=lambda x: x[1])
         tail = request_queue_[-1]
         # if it is our message, we got the lock!
         receive_ansv_ = False
@@ -124,10 +127,10 @@ class lamport:
             elif receive_ansv_ is True and message['type'] == 'request':
                 self.queue_.put(message)
             elif receive_ansv_ is False and message['type'] == 'request':
-                if message['message'] not in request_queue_:
+                if message['message'][1] not in [k[1] for k in request_queue_]:
                     request_queue_.append(message['message'])
                 logger.debug('request_queue_ ' + str(request_queue_))
-                request_queue_.sort(key=lambda x: x[0])
+                request_queue_.sort(key=lambda x: x[1])
                 tail = request_queue_[-1]
                 logger.debug('tail value ' + str(tail))
                 self.timer_.timer_ = tail[1]
@@ -135,7 +138,8 @@ class lamport:
                 self.comm_.send_request(ip, port, tail)
             elif receive_ansv_ is False and message['type'] == 'release':
                 logger.info('Releasing lock ' + str(message['message']))
-                request_queue_.remove(message['message'])
+                if message['message'] in request_queue_:
+                    request_queue_.remove(message['message'])
                 if end_flag and len(request_queue_) == 0:
                     (ip, port) = self.comm_.get_targets(self.whoami)
                     self.comm_.send_end(ip, port)
