@@ -26,7 +26,7 @@ class lamport_communication:
     socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def get_targets(self, i):
-        logger.debug('get_targets ' + str(i))
+        # logger.debug('get_targets ' + str(i))
         return (i.split(":")[0], int(i.split(":")[1]))
 
     def __init__(self, nodes, whoami):
@@ -57,10 +57,22 @@ class lamport_communication:
         )
         s.close()
 
-    def send_release(self, ip, port, message):
-        logging.debug(
-            "Send release " + str(ip) + ":" + str(port) + " " + str(message)
+    def send_response(self, ip, port, message):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip, port))
+        s.send(
+            bytes(
+                json.dumps(
+                    {
+                        'type': 'response',
+                        'message': message,
+                        'source': self.whoami
+                    }
+                ) + '\0', 'UTF-8')
         )
+        s.close()
+
+    def send_release(self, ip, port, message):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
         s.send(

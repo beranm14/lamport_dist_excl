@@ -31,6 +31,8 @@ class lamport:
         self.comm_ = lamport_communication(
             self.nodes_, whoami)
         self.whoami = whoami
+        logger.debug("Whoami " + str(whoami))
+        logger.debug("Timer " + str(self.timer_.timer_))
         self.start_listen()
 
     def lock(self):
@@ -38,7 +40,7 @@ class lamport:
         logger.info("Local lock requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_]
-        request_queue_.append(request)
+        # request_queue_.append(request)
         logger.debug("Request " + str(request))
         failed_nodes = self.comm_.broadcast_request(request)
         if self.test_winner(request):
@@ -48,7 +50,7 @@ class lamport:
             return True
         logger.debug("Lock already taken")
         self.comm_.broadcast_release(request)
-        request_queue_.remove(request)
+        # request_queue_.remove(request)
         logger.debug("Requested for lock removal")
         self.lock_ = []
         return False
@@ -81,11 +83,10 @@ class lamport:
         self.listener.start()
 
     def test_winner(self, request):
-        global receive_ansv_, request_queue_, failed_nodes
-        if request[1] in [k[1] for k in request_queue_]:
-            logging.info("Lock with same timer already taken")
-            return False
-        receive_ansv_ = True
+        global request_queue_, failed_nodes
+        # if request[1] in [k[1] for k in request_queue_]:
+        #     raise ValueError("Lock with same timestamp already taken!")
+        # request_queue_.append(request)
         logger.debug("Switching to wait for request state")
         ans_nodes = []
         # check if nodes are not already offline
@@ -105,46 +106,76 @@ class lamport:
         request_queue_.sort(key=lambda x: x[1])
         tail = request_queue_[-1]
         # if it is our message, we got the lock!
-        receive_ansv_ = False
         self.timer_.timer_ = tail[1]  # setting max timer value
+        # try to find if somebody else haven't got lock with same time
+        times_ = list(
+            filter(
+                lambda x: x[1] == request[1],
+                request_queue_
+            )
+        )
+        logging.debug("times_ " + str(times_))
+        if len(times_) > 1:
+            logging.info("Somebody else got the same time")
+            times_.sort(key=lambda x: x[0])
+            logging.debug("sorted_hosts_ " + str(times_))
+            tail = times_[-1]
+            if tail == request:
+                logging.info("Got lock")
+                return True
+            return False
+        logging.debug(str(tail) + " == " + str(request))
         if tail == request:
-            logging.info(
-                "Adjusting time from " +
-                str(self.timer_.timer_) +
-                " to " + str(tail[1]))
             logging.info("Got lock")
             return True
         logging.info("Din't got lock")
         return False
 
     def listener(self):
-        global receive_ansv_, request_queue_, end_flag
+        global request_queue_, end_flag
         while 1:
             message = self.comm_.receive_()
             logger.debug('Received message: ' + str(message))
             if message['type'] == 'end' and message['source'] == self.whoami:
                 return
-            elif receive_ansv_ is True and message['type'] == 'request':
+            elif message['type'] == 'response':
                 self.queue_.put(message)
-            elif receive_ansv_ is False and message['type'] == 'request':
-                if message['message'][1] not in [k[1] for k in request_queue_]:
-                    request_queue_.append(message['message'])
+            elif message['type'] == 'request':
                 logger.debug('request_queue_ ' + str(request_queue_))
-                request_queue_.sort(key=lambda x: x[1])
-                tail = request_queue_[-1]
-                logger.debug('tail value ' + str(tail))
-                self.timer_.timer_ = tail[1]
-                (ip, port) = self.comm_.get_targets(message['source'])
-                self.comm_.send_request(ip, port, tail)
-            elif receive_ansv_ is False and message['type'] == 'release':
+                if message['message'][1] in [k[1] for k in request_queue_]:
+                    already_in_message = list(
+                        filter(
+                            lambda x: x[1] == message['message'][1],
+                            request_queue_
+                        )
+                    )[0]
+                    logger.debug('tail value ' + str(already_in_message))
+                    self.timer_.timer_ = already_in_message[1]
+                    (ip, port) = self.comm_.get_targets(message['source'])
+                    self.comm_.send_response(ip, port, already_in_message)
+                else:
+                    request_queue_.append(message['message'])
+                    request_queue_.sort(key=lambda x: x[1])
+                    tail = request_queue_[-1]
+                    logger.debug('tail value ' + str(tail))
+                    self.timer_.timer_ = tail[1]
+                    (ip, port) = self.comm_.get_targets(message['source'])
+                    self.comm_.send_response(ip, port, tail)
+            elif message['type'] == 'release':
                 logger.info('Releasing lock ' + str(message['message']))
                 if message['message'] in request_queue_:
+                    # remove_message = message['message']
+                    # logger.debug(
+                    #     'Adjusting timer accoring of ' + str(remove_message))
+                    # self.timer_.timer_ = remove_message[1]
                     request_queue_.remove(message['message'])
                 if end_flag and len(request_queue_) == 0:
                     (ip, port) = self.comm_.get_targets(self.whoami)
                     self.comm_.send_end(ip, port)
             else:
                 logger.info('This was not covered ' + str(message))
+            if end_flag:
+                return
 
     def finnish(self):
         global end_flag, request_queue_

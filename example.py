@@ -2,6 +2,7 @@ from lamport.lamport import lamport
 import time
 from argparse import ArgumentParser
 import random
+import pause, datetime
 
 
 def main():
@@ -35,6 +36,25 @@ def main():
     else:
         print("Couldn't get a lock")
 
+    time.sleep(10)
+    print("===============================================")
+    print("============  GETTING SECOND LOCK =============")
+    print("===============================================")
+    time.sleep(10)
+    now = datetime.datetime.now()
+    now_minutes = now.replace(second=0, microsecond=0)
+    now_plus_1 = now_minutes + datetime.timedelta(minutes=1)
+    print("Setting same time till " + str(now_plus_1))
+    pause.until(now_plus_1)
+
+    lock = lamp.lock()
+    if lock:
+        print("Locked")
+        time.sleep(10)
+        lamp.unlock()
+        print("Unlocked")
+    else:
+        print("Couldn't get a lock")
     lamp.finnish()
 
 
