@@ -26,7 +26,17 @@ def main():
 
     lamp = lamport(whoami=args.whoami, path_to_nodes=args.nodes)
 
-    time.sleep(10)
+    print("==================================================================")
+    print("==================  GETTING FIRST LOCK ===========================")
+    print("MULTIPLE PROCESSES TRY TO GET THE LOCK WITH LITTLE TIME DIFFERENCE")
+    print("==================================================================")
+    now = datetime.datetime.now()
+    now_minutes = now.replace(second=0, microsecond=0)
+    now_plus_1 = now_minutes + datetime.timedelta(minutes=1.15)
+    print("Setting same time till " + str(now_plus_1))
+    pause.until(now_plus_1)
+
+    time.sleep(random.randint(0, 10) / 10)
     lock = lamp.lock()
     if lock:
         print("Locked")
@@ -37,9 +47,10 @@ def main():
         print("Couldn't get a lock")
 
     time.sleep(10)
-    print("===============================================")
-    print("============  GETTING SECOND LOCK =============")
-    print("===============================================")
+    print("==================================================================")
+    print("=================  GETTING SECOND LOCK ===========================")
+    print("MULTIPLE PROCESSES TRY TO GET THE LOCK WITH AT THE SAME TIME")
+    print("==================================================================")
     time.sleep(10)
     now = datetime.datetime.now()
     now_minutes = now.replace(second=0, microsecond=0)
@@ -56,6 +67,9 @@ def main():
     else:
         print("Couldn't get a lock")
     lamp.finnish()
+    print("==================================================================")
+    print("==================================================================")
+    print("==================================================================")
 
 
 if __name__ == "__main__":
