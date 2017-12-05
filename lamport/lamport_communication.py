@@ -102,6 +102,32 @@ class lamport_communication:
         )
         s.close()
 
+    def send_var(self, ip, port, message):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip, port))
+        s.send(
+            bytes(
+                json.dumps(
+                    {
+                        'type': 'var',
+                        'message': message,
+                        'source': self.whoami
+                    }
+                ) + '\0', 'UTF-8')
+        )
+        s.close()
+
+    def broadcast_var(self, message):
+        failed_nodes = []
+        for i in self.nodes_:
+            (target_ip, target_po) = self.get_targets(i)
+            try:
+                self.send_var(target_ip, target_po, message)
+            except socket.error:
+                logging.debug("Failed node " + str(i))
+                failed_nodes.append(i)
+        return failed_nodes
+
     def broadcast_request(self, message):
         failed_nodes = []
         for i in self.nodes_:

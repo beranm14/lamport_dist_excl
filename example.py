@@ -2,7 +2,8 @@ from lamport.lamport import lamport
 import time
 from argparse import ArgumentParser
 import random
-import pause, datetime
+import pause
+import datetime
 
 
 def main():

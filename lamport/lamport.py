@@ -12,6 +12,7 @@ receive_ansv_ = False
 request_queue_ = []
 failed_nodes = []
 end_flag = False
+shared_var = ""
 
 
 class lamport:
@@ -131,8 +132,16 @@ class lamport:
         logging.info("Din't got lock")
         return False
 
+    def share_var(self, message):
+        global shared_var
+        self.comm_.broadcast_var(message)
+
+    def get_var(self):
+        global shared_var
+        return shared_var
+
     def listener(self):
-        global request_queue_, end_flag
+        global request_queue_, end_flag, shared_var
         while 1:
             message = self.comm_.receive_()
             logger.debug('Received message: ' + str(message))
@@ -164,14 +173,13 @@ class lamport:
             elif message['type'] == 'release':
                 logger.info('Releasing lock ' + str(message['message']))
                 if message['message'] in request_queue_:
-                    # remove_message = message['message']
-                    # logger.debug(
-                    #     'Adjusting timer accoring of ' + str(remove_message))
-                    # self.timer_.timer_ = remove_message[1]
                     request_queue_.remove(message['message'])
                 if end_flag and len(request_queue_) == 0:
                     (ip, port) = self.comm_.get_targets(self.whoami)
                     self.comm_.send_end(ip, port)
+            elif message['type'] == 'var':
+                logger.info('Received new var ' + str(message['message']))
+                shared_var = str(message['message'])
             else:
                 logger.info('This was not covered ' + str(message))
             if end_flag:
