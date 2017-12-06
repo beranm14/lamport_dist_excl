@@ -5,8 +5,10 @@ from queue import Queue
 import yaml
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.propagate = False
 
 receive_ansv_ = False
 request_queue_ = []
@@ -21,7 +23,6 @@ class lamport:
     lock_ = []
 
     def __init__(self, whoami, path_to_nodes='./lamport/nodes.yml'):
-        print(path_to_nodes)
         with open(path_to_nodes, 'r') as stream:
             logger.debug("Reading nodes")
             for i in yaml.load(stream)['nodes']:
@@ -41,7 +42,7 @@ class lamport:
         logger.info("Local lock requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_]
-        # request_queue_.append(request)
+        request_queue_.append(request)
         logger.debug("Request " + str(request))
         failed_nodes = self.comm_.broadcast_request(request)
         if self.test_winner(request):
@@ -51,7 +52,7 @@ class lamport:
             return True
         logger.debug("Lock already taken")
         self.comm_.broadcast_release(request)
-        # request_queue_.remove(request)
+        request_queue_.remove(request)
         logger.debug("Requested for lock removal")
         self.lock_ = []
         return False
@@ -135,6 +136,7 @@ class lamport:
     def share_var(self, message):
         global shared_var
         self.comm_.broadcast_var(message)
+        shared_var = message
 
     def get_var(self):
         global shared_var
@@ -188,6 +190,9 @@ class lamport:
     def finnish(self):
         global end_flag, request_queue_
         end_flag = True
-        if len(request_queue_) == 0:
-            (ip, port) = self.comm_.get_targets(self.whoami)
-            self.comm_.send_end(ip, port)
+        for i in request_queue_:
+            if i[0] == self.whoami:
+                self.comm_.broadcast_release(i)
+                request_queue_.remove(i)
+        (ip, port) = self.comm_.get_targets(self.whoami)
+        self.comm_.send_end(ip, port)

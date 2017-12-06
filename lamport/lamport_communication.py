@@ -4,8 +4,10 @@ import sys
 import signal
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.propagate = False
 
 
 def signal_handler(signal, frame):
