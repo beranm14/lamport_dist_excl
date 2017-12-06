@@ -1,4 +1,4 @@
-from lamport.shared_var import shared_var
+from lamport.lamport_var import lamport_var
 import readchar
 from argparse import ArgumentParser
 
@@ -19,17 +19,16 @@ def main():
         default='./lamport/nodes.yml',
         help='List of all nodes')
     args = parser.parse_args()
-    shr_var = shared_var()
-    shr_var.register(whoami=args.whoami, path_to_nodes=args.nodes)
+    shr_var = lamport_var(whoami=args.whoami, path_to_nodes=args.nodes)
     tmp = ""
     while 1:
         ch = readchar.readchar()
         tmp = shr_var.read_var()
         tmp = tmp + ch
         if str(ch) == '!':
-            shr_var.unregister()
+            shr_var.finnish()
             return
-        elif shr_var.write_var(tmp):
+        elif shr_var.publish(tmp):
             print(tmp)
         print(shr_var.read_var())
 

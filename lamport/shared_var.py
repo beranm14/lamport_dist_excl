@@ -1,7 +1,4 @@
 from .lamport import lamport
-import logging
-logging.basicConfig(level=logging.CRITICAL)
-logger = logging.getLogger(__name__)
 
 
 class shared_var:
@@ -17,6 +14,7 @@ class shared_var:
         return False
 
     def read_var(self):
+        # this is bad in case of restart
         return self.lamp.get_var()
 
     def unregister(self):
