@@ -5,10 +5,15 @@ from queue import Queue
 import yaml
 import logging
 
-# logging.basicConfig(level=logging.DEBUG)
-logging.basicConfig(level=logging.CRITICAL)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.propagate = False
+hdlr = logging.FileHandler('./log/var_simulator.log')
+formatter = logging.Formatter(
+    '%(asctime)s %(levelname)s %(process)d %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.DEBUG)
+
 
 receive_ansv_ = False
 request_queue_ = []
