@@ -165,10 +165,11 @@ class lamport:
                 if self.all_node_sent(ans_nodes):
                     break
         # pick message with the biggest timestamp
-        request_queue_.sort(key=lambda x: x[1])
-        tail = request_queue_[-1]
+        # request_queue_.sort(key=lambda x: x[1])
+        # head = request_queue_[0]
         # if it is our message, we got the lock!
-        self.timer_.timer_ = tail[1]  # setting max timer valu
+        # self.timer_.timer_ = head[1]  # setting max timer valu
+        """
         for i in request_queue_:
             if i[0] != request[0]:
                 logging.info(
@@ -179,9 +180,9 @@ class lamport:
         """
         # pick message with the biggest timestamp
         request_queue_.sort(key=lambda x: x[1])
-        tail = request_queue_[-1]
+        head = request_queue_[0]
         # if it is our message, we got the lock!
-        self.timer_.timer_ = tail[1]  # setting max timer valu
+        self.timer_.timer_ = head[1] + 1  # setting max timer value
         # try to find if somebody else haven't got lock with same time
         times_ = list(
             filter(
@@ -194,18 +195,17 @@ class lamport:
             logging.info("Somebody else got the same time")
             times_.sort(key=lambda x: x[0])
             logging.debug("sorted_hosts_ " + str(times_))
-            tail = times_[-1]
-            if tail == request:
+            head = times_[0]
+            if head == request:
                 logging.info("Got lock")
                 return True
             return False
-        logging.debug(str(tail) + " == " + str(request))
-        if tail == request:
+        logging.debug(str(head) + " == " + str(request))
+        if head == request:
             logging.info("Got lock")
             return True
         logging.info("Din't got lock")
         return False
-        """
 
     def share_var(self, message):
         global shared_var
@@ -237,19 +237,17 @@ class lamport:
                             lambda x: x[1] == message['message'][1],
                             request_queue_
                         )
-                    )[0]
-                    logger.debug('tail value ' + str(already_in_message))
-                    self.timer_.timer_ = already_in_message[1]
-                    (ip, port) = self.comm_.get_targets(message['source'])
-                    self.comm_.send_response(ip, port, already_in_message)
+                    )
+                    already_in_message.sort(key=lambda x: x[0])
+                    head = already_in_message[0]
                 else:
                     request_queue_.append(message['message'])
                     request_queue_.sort(key=lambda x: x[1])
-                    tail = request_queue_[-1]
-                    logger.debug('tail value ' + str(tail))
-                    self.timer_.timer_ = tail[1]
-                    (ip, port) = self.comm_.get_targets(message['source'])
-                    self.comm_.send_response(ip, port, tail)
+                    head = request_queue_[0]
+                logger.debug('head value ' + str(head))
+                self.timer_.timer_ = head[1] + 1
+                (ip, port) = self.comm_.get_targets(message['source'])
+                self.comm_.send_response(ip, port, head)
             elif message['type'] == 'release':
                 logger.info('Releasing lock ' + str(message['message']))
                 if message['message'] in request_queue_:
