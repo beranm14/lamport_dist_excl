@@ -44,4 +44,24 @@ time = max(time_stamp, time)+1;
 
 ## Shared Variable
 
-In the same way as the lock requests all the nodes and make sorted queue, we can implement shared variable. The node which propose new variable sends requests, collects answers and pick the one with the biggest logical time. In case all the nodes create request in the same time, node `id` comes into to computations and queue is sorted by `id` also.
+For shared variable, there is Lamport Paxos algorithm (see [Computerphille video](https://www.youtube.com/watch?v=s8JqcZtvnsM)). It works pretty similar to locks.
+
+In the same way as the lock are requested: all the nodes keep sorted queue. The node which propose new variable sends requests, collects answers and pick the one with the biggest logical time. In case all the nodes create request in the same time, node `id` comes into to computations and queue is sorted by `id` also.
+
+The resulting variable shared by all is the one with the biggest logical time and from node with the highest `id`
+
+## Usage
+
+For locking example you can use `example.py`, there is working example in `docker-compose.yml`.  **Currently** there are some reserves since Lamport Bakery algorithm give priority to the lowest timestamp, not the biggest (raise condition can force nodes not to get the lock at all).
+
+For sharing variable you can use `var_simulator.py` (implemented from Lamport Paxos alg.).
+
+ * First you have to define nodes in `./lamport/nodes.yml`, which are going to be the nodes to use in the algorithm.
+ * Secod you have give `id` argument to the script: `python3 var_simulator.py -w 127.0.0.1:8991`, where `id` is one of the node from `nodes.yml`.
+ 
+ After starting all the nodes, you start to type into to keyboard and all the nodes have to start share the variable.
+ 
+ 
+
+
+
