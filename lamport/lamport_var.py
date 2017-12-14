@@ -22,10 +22,32 @@ shared_var = ""
 
 
 class lamport_var:
+    """Share variable in sense of Lamport algorithm.
+
+    It works in same way as locking -- multiple
+    processes want to have current version of
+    variable. So they send request and sort
+    responses in input queue. The biggest logical
+    timestamp will win and provide variable.
+
+    Attributes:
+        nodes (:obj:`list` of :obj:`str`):
+            list of nodes in topology..
+
+    """
 
     nodes_ = []
 
     def __init__(self, whoami, path_to_nodes='./lamport/nodes.yml'):
+        """Construct Lamport variable object, read nodes from yaml.
+
+        Also prepare connection to the other nodes.
+
+        Args:
+            whoami (str): Which node in nodes is this.
+            path_to_nodes (str): Path to yam with other
+                nodes description.
+        """
         with open(path_to_nodes, 'r') as stream:
             logger.debug("Reading nodes")
             for i in yaml.load(stream)['nodes']:
@@ -33,16 +55,28 @@ class lamport_var:
                     self.nodes_.append(i)
             logger.debug("Nodes " + str(self.nodes_))
         self.timer_ = lamport_timer(whoami)
+        """lamport_timer: Logical timer for topology."""
         self.comm_ = lamport_communication(
             self.nodes_, whoami)
+        """lamport_communication: Object for communication."""
         self.whoami = whoami
+        """str: Variable to keep which node is this."""
         logger.debug("Whoami " + str(whoami))
         logger.debug("Timer " + str(self.timer_.timer_))
         self.start_listen()
 
     def publish(self, message):
+        """Publish variable in topology.
+
+        Args:
+            message (str): String of variable.
+
+        Returns:
+            Message which wins in topology
+
+        """
         global request_queue_, failed_nodes
-        self.timer_.timer_incr()
+        self.timer_.timer_incr()  # increment in new change in topology
         logger.info("Local publish requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_, message]
@@ -53,6 +87,11 @@ class lamport_var:
         return winner_request[2]  # returning just a variable
 
     def read_var(self):
+        """Read variable from the input queue.
+
+        Returns:
+            Message with the biggest logical time.
+        """
         global request_queue_, failed_nodes
         request_queue_.sort(key=lambda x: x[1])
         if len(request_queue_) == 0:
@@ -71,6 +110,16 @@ class lamport_var:
         return times_[-1][2]
 
     def all_node_sent(self, cmp_nodes):
+        """Check if all nodes sent their responses.
+
+        Args:
+            cmp_nodes (:obj:`list` of :obj:`str`): List of nodes
+                who sent their messages already.
+
+        Returns:
+            True if all nodes already responded.
+
+        """
         logger.debug(
             "Comparing " +
             str(sorted(self.nodes_)) + " " +
@@ -79,11 +128,23 @@ class lamport_var:
         return sorted(self.nodes_) == sorted(cmp_nodes)
 
     def start_listen(self):
+        """Create queue & new thread and start listen.
+
+        """
         self.queue_ = Queue()
+        """Queue: Queue to communicate in case this node
+            sends request with new publish.
+
+        """
         self.listener = Thread(target=self.listener)
+        """Thread: Thread to serve requests."""
         self.listener.start()
 
     def test_winner(self):
+        """Wait for all the answers, sort them and return message
+            with the biggest logical time.
+
+        """
         global request_queue_, failed_nodes
         # if request[1] in [k[1] for k in request_queue_]:
         #     raise ValueError("Lock with same timestamp already taken!")
@@ -122,6 +183,10 @@ class lamport_var:
         return times_[-1]
 
     def listener(self):
+        """Listen on all messages and forward them into queue if
+            lock is requested or forward content of node queue.
+
+        """
         global request_queue_, end_flag, shared_var
         while 1:
             message = self.comm_.receive_()
@@ -153,6 +218,9 @@ class lamport_var:
                 return
 
     def finnish(self):
+        """Send message to local node to end listenning and just end.
+
+        """
         global end_flag
         end_flag = True
         (ip, port) = self.comm_.get_targets(self.whoami)

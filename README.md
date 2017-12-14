@@ -40,3 +40,8 @@ The algorithm for receiving a message:
 (message, time_stamp) = receive();
 time = max(time_stamp, time)+1;
 ```
+
+
+## Shared Variable
+
+In the same way as the lock requests all the nodes and make sorted queue, we can implement shared variable. The node which propose new variable sends requests, collects answers and pick the one with the biggest logical time. In case all the nodes create request in the same time, node `id` comes into to computations and queue is sorted by `id` also.

@@ -23,11 +23,27 @@ shared_var = ""
 
 
 class lamport:
+    """Obtain lock in sense of Lamport algorithm.
+
+    Attributes:
+        nodes (:obj:`list` of :obj:`str`):
+            list of nodes in topology..
+
+    """
 
     nodes_ = []
     lock_ = []
 
     def __init__(self, whoami, path_to_nodes='./lamport/nodes.yml'):
+        """Construct Lamport variable object, read nodes from yaml.
+
+        Also prepare connection to the other nodes.
+
+        Args:
+            whoami (str): Which node in nodes is this.
+            path_to_nodes (str): Path to yam with other
+                nodes description.
+        """
         with open(path_to_nodes, 'r') as stream:
             logger.debug("Reading nodes")
             for i in yaml.load(stream)['nodes']:
@@ -43,14 +59,20 @@ class lamport:
         self.start_listen()
 
     def lock(self):
+        """Create a lock in topology
+
+        Returns:
+            True if lock was taken by node.
+
+        """
         global request_queue_, failed_nodes
         logger.info("Local lock requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_]
         # test if the same time is not already there
-        if request[1] in [k[1] for k in request_queue_]:
-            logger.debug("Lock already taken")
-            return False
+        # if request[1] in [k[1] for k in request_queue_]:
+        #     logger.debug("Lock already taken")
+        #     return False
         request_queue_.append(request)
         logger.debug("Request " + str(request))
         failed_nodes = self.comm_.broadcast_request(request)
@@ -67,6 +89,13 @@ class lamport:
         return False
 
     def unlock(self):
+        """Send unlock in topology, that actually removes message in
+            all the queues in topology.
+
+        Returns:
+            True if lock was taken by node.
+
+        """
         global request_queue_
         if self.lock_ == []:
             raise ValueError("Lock is empty!")
@@ -115,12 +144,46 @@ class lamport:
                     break
         # pick message with the biggest timestamp
         request_queue_.sort(key=lambda x: x[1])
+        tail = request_queue_[-1]
+        # if it is our message, we got the lock!
+        self.timer_.timer_ = tail[1]  # setting max timer valu
         for i in request_queue_:
             if i[0] != request[0]:
                 logging.info(
                     "Somebody else have the lock, waiting for release!")
+                logging.debug("Queue " + str(request_queue_))
                 return False
         return True
+        """
+        # pick message with the biggest timestamp
+        request_queue_.sort(key=lambda x: x[1])
+        tail = request_queue_[-1]
+        # if it is our message, we got the lock!
+        self.timer_.timer_ = tail[1]  # setting max timer valu
+        # try to find if somebody else haven't got lock with same time
+        times_ = list(
+            filter(
+                lambda x: x[1] == request[1],
+                request_queue_
+            )
+        )
+        logging.debug("times_ " + str(times_))
+        if len(times_) > 1:
+            logging.info("Somebody else got the same time")
+            times_.sort(key=lambda x: x[0])
+            logging.debug("sorted_hosts_ " + str(times_))
+            tail = times_[-1]
+            if tail == request:
+                logging.info("Got lock")
+                return True
+            return False
+        logging.debug(str(tail) + " == " + str(request))
+        if tail == request:
+            logging.info("Got lock")
+            return True
+        logging.info("Din't got lock")
+        return False
+        """
 
     def share_var(self, message):
         global shared_var
