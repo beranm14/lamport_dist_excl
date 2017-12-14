@@ -1,11 +1,26 @@
 version: '3.3'
 services:
-  runner:
+  runner1:
     build:
-      context: ./dockerfiles/
-      dockerfile: ./runner
-    volumes:
-      - ./:/opt
-    restart: on-failure
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    # volumes:
+    #   - ./:/opt
     working_dir: /opt
-    
+    command: 'python3 /opt/example.py -w runner1:8990'
+  runner2:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    # volumes:
+    #   - ./:/opt
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner2:8990'
+  runner3:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    # volumes:
+    #   - ./:/opt
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner3:8990'
