@@ -110,6 +110,16 @@ class lamport:
         return True
 
     def all_node_sent(self, cmp_nodes):
+        """Check if all nodes sent their responses.
+
+        Args:
+            cmp_nodes (:obj:`list` of :obj:`str`): List of nodes
+                who sent their messages already.
+
+        Returns:
+            True if all nodes already responded.
+
+        """
         logger.debug(
             "Comparing " +
             str(sorted(self.nodes_)) + " " +
@@ -118,11 +128,23 @@ class lamport:
         return sorted(self.nodes_) == sorted(cmp_nodes)
 
     def start_listen(self):
+        """Create queue & new thread and start listen.
+
+        """
         self.queue_ = Queue()
+        """Queue: Queue to communicate in case this node
+            sends request with new publish.
+
+        """
         self.listener = Thread(target=self.listener)
+        """Thread: Thread to serve requests."""
         self.listener.start()
 
     def test_winner(self, request):
+        """Wait for all the answers, sort them and return message
+            with the biggest logical time.
+
+        """
         global request_queue_, failed_nodes
         # if request[1] in [k[1] for k in request_queue_]:
         #     raise ValueError("Lock with same timestamp already taken!")
@@ -195,6 +217,10 @@ class lamport:
         return shared_var
 
     def listener(self):
+        """Listen on all messages and forward them into queue if
+            lock is requested or forward content of node queue.
+
+        """
         global request_queue_, end_flag, shared_var
         while 1:
             message = self.comm_.receive_()
@@ -240,6 +266,9 @@ class lamport:
                 return
 
     def finnish(self):
+        """Send message to local node to end listenning and just end.
+
+        """
         global end_flag, request_queue_
         end_flag = True
         for i in request_queue_:
