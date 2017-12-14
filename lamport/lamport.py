@@ -47,6 +47,10 @@ class lamport:
         logger.info("Local lock requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_]
+        # test if the same time is not already there
+        if request[1] in [k[1] for k in request_queue_]:
+            logger.debug("Lock already taken")
+            return False
         request_queue_.append(request)
         logger.debug("Request " + str(request))
         failed_nodes = self.comm_.broadcast_request(request)
@@ -111,32 +115,12 @@ class lamport:
                     break
         # pick message with the biggest timestamp
         request_queue_.sort(key=lambda x: x[1])
-        tail = request_queue_[-1]
-        # if it is our message, we got the lock!
-        self.timer_.timer_ = tail[1]  # setting max timer value
-        # try to find if somebody else haven't got lock with same time
-        times_ = list(
-            filter(
-                lambda x: x[1] == request[1],
-                request_queue_
-            )
-        )
-        logging.debug("times_ " + str(times_))
-        if len(times_) > 1:
-            logging.info("Somebody else got the same time")
-            times_.sort(key=lambda x: x[0])
-            logging.debug("sorted_hosts_ " + str(times_))
-            tail = times_[-1]
-            if tail == request:
-                logging.info("Got lock")
-                return True
-            return False
-        logging.debug(str(tail) + " == " + str(request))
-        if tail == request:
-            logging.info("Got lock")
-            return True
-        logging.info("Din't got lock")
-        return False
+        for i in request_queue_:
+            if i[0] != request[0]:
+                logging.info(
+                    "Somebody else have the lock, waiting for release!")
+                return False
+        return True
 
     def share_var(self, message):
         global shared_var
