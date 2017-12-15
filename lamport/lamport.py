@@ -2,8 +2,10 @@ from .lamport_timer import lamport_timer
 from .lamport_communication import lamport_communication
 from threading import Thread
 from queue import Queue
+import queue
 import yaml
 import logging
+import socket
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -69,16 +71,13 @@ class lamport:
         logger.info("Local lock requested")
         logger.debug("Local timer: %d", self.timer_.timer_)
         request = [self.whoami, self.timer_.timer_]
-        # test if the same time is not already there
-        # if request[1] in [k[1] for k in request_queue_]:
-        #     logger.debug("Lock already taken")
-        #     return False
         request_queue_.append(request)
         logger.debug("Request " + str(request))
-        failed_nodes = self.comm_.broadcast_request(request)
+        self.timer_.timer_incr()
+        # failed_nodes = self.comm_.broadcast_request(request)
+        # this is removed and unicast were used
         if self.test_winner(request):
             self.lock_ = request
-            self.timer_.timer_incr()
             logger.debug("Lock taken")
             return True
         logger.debug("Lock already taken")
@@ -109,24 +108,6 @@ class lamport:
         request_queue_.remove(self.lock_)
         return True
 
-    def all_node_sent(self, cmp_nodes):
-        """Check if all nodes sent their responses.
-
-        Args:
-            cmp_nodes (:obj:`list` of :obj:`str`): List of nodes
-                who sent their messages already.
-
-        Returns:
-            True if all nodes already responded.
-
-        """
-        logger.debug(
-            "Comparing " +
-            str(sorted(self.nodes_)) + " " +
-            str(sorted(cmp_nodes)) + " " +
-            str(sorted(self.nodes_) == sorted(cmp_nodes)))
-        return sorted(self.nodes_) == sorted(cmp_nodes)
-
     def start_listen(self):
         """Create queue & new thread and start listen.
 
@@ -140,71 +121,92 @@ class lamport:
         """Thread: Thread to serve requests."""
         self.listener.start()
 
+    def all_node_sent(self, cmp_nodes):
+        """Check if all nodes sent their responses.
+
+        Args:
+            cmp_nodes (:obj:`list` of :obj:`str`): List of nodes
+                who sent their messages already.
+
+        Returns:
+            True if all nodes already responded.
+
+        """
+        logger.debug(
+            "Comparing " +
+            str(sorted(set(self.nodes_))) + " " +
+            str(sorted(set(cmp_nodes))) + " " +
+            str(sorted(set(self.nodes_)) == sorted(set(cmp_nodes))))
+        return sorted(set(self.nodes_)) == sorted(set(cmp_nodes))
+
+    def sources_already_in_queue(self, cmp_nodes):
+        """Check if all nodes sent their responses.
+
+        Args:
+            cmp_nodes (:obj:`list` of :obj:`str`): List of nodes
+                who sent their messages already.
+
+        Returns:
+            True if all nodes already responded.
+
+        """
+        global request_queue_
+        req_nodes = [k[0] for k in request_queue_]
+        for i in req_nodes:
+            if i not in cmp_nodes and i != self.whoami:
+                cmp_nodes.append(i)
+        logger.debug(
+            "Comparing already in queue " +
+            str(sorted(set(self.nodes_))) + " " +
+            str(sorted(set(cmp_nodes))) + " " +
+            str(sorted(set(self.nodes_)) == sorted(set(cmp_nodes))))
+        return sorted(set(self.nodes_)) == sorted(set(cmp_nodes))
+
     def test_winner(self, request):
         """Wait for all the answers, sort them and return message
             with the biggest logical time.
 
         """
         global request_queue_, failed_nodes
-        # if request[1] in [k[1] for k in request_queue_]:
-        #     raise ValueError("Lock with same timestamp already taken!")
-        # request_queue_.append(request)
-        logger.debug("Switching to wait for request state")
-        ans_nodes = []
-        # check if nodes are not already offline
-        if not self.all_node_sent(failed_nodes):
-            # add offline nodes to the ansvered nodes
-            ans_nodes = failed_nodes
+        failed_nodes = []
+        for node in self.nodes_:
             while 1:
-                # wait for all nodes to ansver
-                message = self.queue_.get(True)
-                logger.debug("Got message " + str(message['message']))
-                ans_nodes.append(message['source'])
-                if message['message'] not in request_queue_:
-                    request_queue_.append(message['message'])
-                if self.all_node_sent(ans_nodes):
+                try:
+                    self.comm_.send_request_nd(node, request)
+                except socket.error:
+                    failed_nodes.append(node)
                     break
-        # pick message with the biggest timestamp
-        # request_queue_.sort(key=lambda x: x[1])
-        # head = request_queue_[0]
-        # if it is our message, we got the lock!
-        # self.timer_.timer_ = head[1]  # setting max timer valu
-        """
-        for i in request_queue_:
-            if i[0] != request[0]:
-                logging.info(
-                    "Somebody else have the lock, waiting for release!")
-                logging.debug("Queue " + str(request_queue_))
-                return False
-        return True
-        """
+                else:
+                    try:
+                        message = self.queue_.get(True, 1)
+                    except queue.Empty:
+                        self.comm_.send_request_nd(node, request)
+                    else:
+                        if message['message'] not in request_queue_:
+                            request_queue_.append(message['message'])
+                        break
+
         # pick message with the biggest timestamp
         request_queue_.sort(key=lambda x: x[1])
         head = request_queue_[0]
+        tail = request_queue_[-1]
+        logging.debug("request_queue_ " + str(request_queue_))
         # if it is our message, we got the lock!
-        self.timer_.timer_ = head[1] + 1  # setting max timer value
+        self.timer_.timer_ = tail[1] + 1  # setting max timer value
         # try to find if somebody else haven't got lock with same time
         times_ = list(
             filter(
-                lambda x: x[1] == request[1],
+                lambda x: x[1] == head[1],
                 request_queue_
             )
         )
         logging.debug("times_ " + str(times_))
-        if len(times_) > 1:
-            logging.info("Somebody else got the same time")
-            times_.sort(key=lambda x: x[0])
-            logging.debug("sorted_hosts_ " + str(times_))
-            head = times_[0]
-            if head == request:
-                logging.info("Got lock")
-                return True
-            return False
-        logging.debug(str(head) + " == " + str(request))
+        times_.sort(key=lambda x: x[0])
+        logging.debug("sorted_hosts_ " + str(times_))
+        head = times_[0]
         if head == request:
             logging.info("Got lock")
             return True
-        logging.info("Din't got lock")
         return False
 
     def share_var(self, message):
@@ -230,22 +232,25 @@ class lamport:
             elif message['type'] == 'response':
                 self.queue_.put(message)
             elif message['type'] == 'request':
+                request = message['message']
+                if request not in request_queue_:
+                    request_queue_.append(request)
+                request_queue_.sort(key=lambda x: x[1])
+                head = request_queue_[0]
+                tail = request_queue_[-1]
+                self.timer_.timer_ = tail[1] + 1
                 logger.debug('request_queue_ ' + str(request_queue_))
-                if message['message'][1] in [k[1] for k in request_queue_]:
-                    already_in_message = list(
-                        filter(
-                            lambda x: x[1] == message['message'][1],
-                            request_queue_
-                        )
+                times_ = list(
+                    filter(
+                        lambda x: x[1] == head[1],
+                        request_queue_
                     )
-                    already_in_message.sort(key=lambda x: x[0])
-                    head = already_in_message[0]
-                else:
-                    request_queue_.append(message['message'])
-                    request_queue_.sort(key=lambda x: x[1])
-                    head = request_queue_[0]
+                )
+                logging.debug("times_ " + str(times_))
+                times_.sort(key=lambda x: x[0])
+                logging.debug("sorted_hosts_ " + str(times_))
+                head = times_[0]
                 logger.debug('head value ' + str(head))
-                self.timer_.timer_ = head[1] + 1
                 (ip, port) = self.comm_.get_targets(message['source'])
                 self.comm_.send_response(ip, port, head)
             elif message['type'] == 'release':

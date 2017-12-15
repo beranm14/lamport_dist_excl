@@ -89,6 +89,8 @@ class lamport_communication:
             message (str): String containing message.
 
         """
+        logger.debug(
+            "Sending request " + ip + ":" + str(port) + " " + str(message))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
         s.send(
@@ -103,6 +105,34 @@ class lamport_communication:
         )
         s.close()
 
+    def send_request_nd(self, node, message):
+        """Sends only messages with flag request.
+
+        Args:
+            ip (str): String stateing target, it does not need
+                need to be only ip, socket.connect is not stupid.
+            port (int): Port of target.
+            message (str): String containing message.
+
+        """
+        (ip, port) = self.get_targets(node)
+        logger.debug(
+            "Sending request " + ip + ":" + str(port) + " " + str(message))
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((ip, port))
+        s.send(
+            bytes(
+                json.dumps(
+                    {
+                        'type': 'request',
+                        'message': message,
+                        'source': self.whoami
+                    }
+                ) + '\0', 'UTF-8')
+        )
+        s.close()
+
+
     def send_response(self, ip, port, message):
         """Sends only messages with flag response.
 
@@ -113,6 +143,8 @@ class lamport_communication:
             message (str): String containing message.
 
         """
+        logger.debug(
+            "Sending response " + ip + ":" + str(port) + " " + str(message))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
         s.send(
@@ -137,6 +169,8 @@ class lamport_communication:
             message (str): String containing message.
 
         """
+        logger.debug(
+            "Sending release " + ip + ":" + str(port) + " " + str(message))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, port))
         s.send(

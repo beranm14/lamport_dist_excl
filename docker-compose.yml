@@ -24,3 +24,19 @@ services:
     #   - ./:/opt
     working_dir: /opt
     command: 'python3 /opt/example.py -w runner3:8990'
+  runner4:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    # volumes:
+    #   - ./:/opt
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner4:8990'
+  runner5:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    # volumes:
+    #   - ./:/opt
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner5:8990'

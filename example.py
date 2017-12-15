@@ -4,6 +4,16 @@ from argparse import ArgumentParser
 import random
 import pause
 import datetime
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+hdlr = logging.FileHandler('./log/var_simulator.log')
+formatter = logging.Formatter(
+    '%(asctime)s %(levelname)s %(process)d %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.DEBUG)
 
 
 def main():
@@ -56,8 +66,9 @@ def main():
     time.sleep(10)
     now = datetime.datetime.now()
     now_minutes = now.replace(second=0, microsecond=0)
-    now_plus_1 = now_minutes + datetime.timedelta(minutes=1)
+    now_plus_1 = now_minutes + datetime.timedelta(minutes=1, seconds=30)
     print("Setting same time till " + str(now_plus_1))
+    logger.debug("Setting same time till " + str(now_plus_1))
     pause.until(now_plus_1)
 
     lock = lamp.lock()
@@ -68,6 +79,7 @@ def main():
         print("Unlocked")
     else:
         print("Couldn't get a lock")
+    time.sleep(10)
     lamp.finnish()
     print("==================================================================")
     print("==================================================================")
