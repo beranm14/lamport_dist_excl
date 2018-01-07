@@ -4,3 +4,6 @@ nodes:
   - runner3:8990
   - runner4:8990
   - runner5:8990
+  - runner6:8990
+  - runner7:8990
+  - runner8:8990

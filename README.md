@@ -52,13 +52,15 @@ The resulting variable shared by all is the one with the biggest logical time an
 
 ### Tests
 
-For sharing variable you can use `var_simulator.py` (implemented from Lamport Paxos alg.).
+For sharing variable you can use `var_simulator_smpax.py` (implemented from Lamport's very simple Paxos alg. -- by given constraints that only one client can collapse, there is no need for quorum etc).
 
  * First you have to define nodes in `./lamport/nodes.yml`, which are going to be the nodes to use in the algorithm.
- * Secod you have give `id` argument to the script: `python3 var_simulator.py -w 127.0.0.1:8991`, where `id` is one of the node from `nodes.yml`.
+ * Secod you have give `id` argument to the script: `python3 var_simulator_smpax.py -w 127.0.0.1:8991`, where `id` is one of the node from `nodes.yml`.
  
 After starting all the nodes, you start to type into to keyboard and all the nodes have to start share the variable.
  
+You should see the same result if you use `var_simulator_lock.py`. This example works with locking (Lamport's Bakery alg.) and writing data into locked space. Since the data are represented in every node, there are some obstacles on restart. If restarted node starts to write to the variable, it erase the variable in other nodes. That is because read is done just from local memory. If some other node would write before new node starts to write, everything is going to be correct.
+
 ### Locking & Unlocking with Lamport bakery algoritm
 
 For locking example you can use `example.py`, there is working example in `docker-compose.yml` (start with `docker-compose up`). It goes through two tests:

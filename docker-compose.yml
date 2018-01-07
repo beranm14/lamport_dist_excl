@@ -40,3 +40,21 @@ services:
     #   - ./:/opt
     working_dir: /opt
     command: 'python3 /opt/example.py -w runner5:8990'
+  runner6:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner6:8990'
+  runner7:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner7:8990'
+  runner8:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/runner
+    working_dir: /opt
+    command: 'python3 /opt/example.py -w runner8:8990'

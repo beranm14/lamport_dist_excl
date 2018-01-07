@@ -23,6 +23,9 @@ class shared_var:
         """
         self.lamp = lamport(whoami, path_to_nodes)
 
+    def __init__(self, whoami, path_to_nodes='./lamport/nodes.yml'):
+        self.register(whoami, path_to_nodes)
+
     def write_var(self, message):
         """Write shared variable into the topology.
 
