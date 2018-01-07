@@ -48,7 +48,9 @@ For shared variable, there is Lamport Paxos algorithm (see [Computerphille video
 
 In the same way as the lock are requested: all the nodes keep sorted queue. The node which propose new variable sends requests, collects answers and pick the one with the biggest logical time. In case all the nodes create request in the same time, node `id` comes into to computations and queue is sorted by `id` also.
 
-The resulting variable shared by all is the one with the biggest logical time and from node with the highest `id`. That is the change in Paxos since lock should be obtained by the process with the lowest timestamp (and `id` if needed).
+The resulting variable shared by all is the one with the biggest logical time and from a node with the highest `id`. That is the change in Paxos since lock should be obtained by the process with the lowest timestamp (and `id` if needed).
+
+### Tests
 
 For sharing variable you can use `var_simulator.py` (implemented from Lamport Paxos alg.).
 
@@ -57,7 +59,7 @@ For sharing variable you can use `var_simulator.py` (implemented from Lamport Pa
  
 After starting all the nodes, you start to type into to keyboard and all the nodes have to start share the variable.
  
-## Locking & Unlocking with Lamport bakery algoritm
+### Locking & Unlocking with Lamport bakery algoritm
 
 For locking example you can use `example.py`, there is working example in `docker-compose.yml` (start with `docker-compose up`). It goes through two tests:
 
